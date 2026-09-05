@@ -3,102 +3,52 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Signing in… — AI Trainer</title>
+  <title>Returning to AI Trainer…</title>
   <style>
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
       font-family:system-ui,sans-serif;background:#070b07;color:#e8f5e9;text-align:center;padding:24px}
-    .card{max-width:400px}
-    h1{font-size:18px;margin:0 0 8px}
-    p{opacity:.85;font-size:14px;line-height:1.45}
-    a.btn,button.btn{display:inline-block;margin:8px 6px 0;padding:12px 18px;border-radius:12px;
-      background:linear-gradient(135deg,#1b5e20,#00e676);color:#041004;text-decoration:none;font-weight:700;border:0;cursor:pointer;font-size:15px}
-    a.btn2,button.btn2{background:transparent;border:1px solid rgba(57,255,20,.4);color:#b9f6ca}
-    .ok{color:#39ff14}.err{color:#ff8a80}
+    h1{font-size:18px;color:#39ff14}
+    p{opacity:.85;font-size:14px}
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1 id="t">Signing you in…</h1>
-    <p id="m">Please wait.</p>
-    <p id="btns"></p>
+  <div>
+    <h1>Returning to AI Trainer…</h1>
+    <p id="m">Opening the app. You can close this tab.</p>
   </div>
 <script>
 (function () {
-  var APP_WEB = "https://dalipconstant.github.io/AI-Trainer/index.html";
   var DEEP = "com.aitrainer.app://auth-callback";
-
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=/.test(search)) hash = "#" + search.replace(/^\?/, "");
-  // Supabase sometimes returns ?code= for PKCE — keep as query if no token
-  var params = new URLSearchParams(hash.replace(/^#/, ""));
-  var access = params.get("access_token");
-  var refresh = params.get("refresh_token") || "";
-  var expiresIn = params.get("expires_in") || "3600";
-  var err = params.get("error_description") || params.get("error");
-
-  var t = document.getElementById("t");
-  var m = document.getElementById("m");
-  var btns = document.getElementById("btns");
-
-  function webUrl() {
-    // Keep tokens in hash so the web app can read them on same origin
-    return APP_WEB + (hash || (access ? ("#access_token=" + encodeURIComponent(access) +
-      "&refresh_token=" + encodeURIComponent(refresh) +
-      "&expires_in=" + encodeURIComponent(expiresIn)) : ""));
+  if (!hash && /access_token=|refresh_token=/.test(search)) {
+    hash = "#" + search.replace(/^\?/, "");
   }
+  var target = DEEP + (hash || (search ? "#" + search.replace(/^\?/, "") : ""));
 
-  function deepUrl() {
-    return DEEP + (hash || (access ? ("#access_token=" + encodeURIComponent(access) +
-      "&refresh_token=" + encodeURIComponent(refresh) +
-      "&expires_in=" + encodeURIComponent(expiresIn)) : ""));
+  // Prefer deep link into installed Android app — do NOT open GitHub web app UI
+  function go() {
+    try { window.location.replace(target); } catch (e) {}
+    try { window.location.href = target; } catch (e2) {}
   }
+  go();
+  setTimeout(go, 400);
+  setTimeout(go, 1200);
 
-  if (err) {
-    t.textContent = "Sign-in failed";
-    t.className = "err";
-    m.textContent = err;
-    btns.innerHTML = '<a class="btn" href="' + APP_WEB + '">Back to AI Trainer</a>';
-    return;
-  }
-
-  if (!access) {
-    t.textContent = "Almost done";
-    m.textContent = "No token found. Go back to the app and try again (or use email login).";
-    btns.innerHTML = '<a class="btn" href="' + APP_WEB + '">Open AI Trainer (web)</a>';
-    return;
-  }
-
+  // If user is only on web (no APK), keep tokens in localStorage for same-origin later
   try {
-    localStorage.setItem("ai_trainer_supabase_session", JSON.stringify({
-      access_token: access,
-      refresh_token: refresh,
-      expires_in: Number(expiresIn) || 3600,
-      expires_at: Math.floor(Date.now() / 1000) + (Number(expiresIn) || 3600),
-      savedAt: Date.now()
-    }));
-  } catch (e) {}
-
-  t.textContent = "Signed in";
-  t.className = "ok";
-  m.textContent = "Opening AI Trainer…";
-
-  var w = webUrl();
-  var d = deepUrl();
-
-  btns.innerHTML =
-    '<a class="btn" id="openWeb" href="' + w + '">Continue in browser</a>' +
-    '<a class="btn btn2" id="openDeep" href="' + d + '">Open app</a>';
-
-  // 1) Try native deep link (Capacitor APK)
-  try { window.location.href = d; } catch (e1) {}
-
-  // 2) After short delay, go to web app on same GitHub Pages origin (works on phone browser)
-  setTimeout(function () {
-    try { window.location.replace(w); } catch (e2) {
-      try { window.location.href = w; } catch (e3) {}
+    var params = new URLSearchParams((hash || "").replace(/^#/, ""));
+    var access = params.get("access_token");
+    if (access) {
+      localStorage.setItem("ai_trainer_supabase_session", JSON.stringify({
+        access_token: access,
+        refresh_token: params.get("refresh_token") || "",
+        expires_in: Number(params.get("expires_in") || 3600),
+        expires_at: Math.floor(Date.now() / 1000) + Number(params.get("expires_in") || 3600),
+        savedAt: Date.now()
+      }));
     }
-  }, 700);
+  } catch (e) {}
 })();
 </script>
 </body>
