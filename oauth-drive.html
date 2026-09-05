@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Connecting Google Drive… — AI Trainer</title>
+  <style>
+    :root {
+      --bg: #070b07;
+      --text: #e8f5e9;
+      --muted: #8fa893;
+      --accent: #39ff14;
+    }
+    body {
+      margin: 0; min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at top, #0d1f0d 0%, var(--bg) 55%);
+      color: var(--text); text-align: center; padding: 24px;
+    }
+    .card { max-width: 380px; }
+    .logo {
+      width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 18px;
+      display: grid; place-items: center; font-size: 32px;
+      background: linear-gradient(135deg, #1b5e20, #00c853 50%, #76ff03);
+      box-shadow: 0 0 32px rgba(57, 255, 20, 0.25);
+    }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    p { color: var(--muted); font-size: 14px; line-height: 1.45; margin: 0 0 10px; }
+    a.btn {
+      display: inline-block; margin-top: 12px; padding: 12px 18px; border-radius: 12px;
+      background: linear-gradient(135deg, #1b5e20, #00e676); color: #041004;
+      text-decoration: none; font-weight: 700;
+    }
+    .ok { color: var(--accent); }
+    .err { color: #ff8a80; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">⚡</div>
+    <h1 id="t">Connecting Google Drive…</h1>
+    <p id="m">Returning to <strong>AI Trainer</strong> with Drive access.</p>
+    <p><a class="btn" id="openApp" href="#">Open AI Trainer</a></p>
+  </div>
+<script>
+(function () {
+  /**
+   * Host this file on GitHub Pages:
+   *   https://dalipconstant.github.io/AI-Trainer/oauth-drive.html
+   *
+   * Google Cloud → OAuth Web client → Authorized redirect URIs must include that exact URL.
+   * Implicit flow returns: #access_token=...&expires_in=...&scope=...
+   */
+
+  var hash = window.location.hash || "";
+  var search = window.location.search || "";
+  if (!hash && /access_token=/.test(search)) {
+    hash = "#" + search.replace(/^\?/, "");
+  }
+
+  var params = new URLSearchParams(hash.replace(/^#/, ""));
+  var token = params.get("access_token");
+  var expires = params.get("expires_in") || "3600";
+  var scope = params.get("scope") || "";
+  var err = params.get("error");
+  var errDesc = params.get("error_description") || "";
+
+  // Capacitor / native deep link
+  var deep =
+    "com.aitrainer.app://oauth-callback" +
+    (hash || (token
+      ? ("#access_token=" + encodeURIComponent(token) +
+         "&expires_in=" + encodeURIComponent(expires) +
+         (scope ? ("&scope=" + encodeURIComponent(scope)) : ""))
+      : ""));
+
+  // Browser / PWA fallback: same origin path the app can poll via localStorage
+  var STORAGE_KEY = "ai_trainer_drive_oauth";
+
+  var link = document.getElementById("openApp");
+  link.href = deep;
+
+  function persistForWeb() {
+    if (!token) return;
+    try {
+      var payload = {
+        access_token: token,
+        expires_in: Number(expires) || 3600,
+        scope: scope,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      // Broadcast to other tabs (app open on same origin)
+      try {
+        localStorage.setItem(STORAGE_KEY + "_ping", String(Date.now()));
+      } catch (e2) {}
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({ type: "AI_TRAINER_DRIVE_OAUTH", ...payload }, "*");
+        } catch (e3) {}
+      }
+    } catch (e) {}
+  }
+
+  if (err) {
+    document.getElementById("t").textContent = "Google denied access";
+    document.getElementById("t").className = "err";
+    document.getElementById("m").textContent =
+      (errDesc || err) + " — close this tab and tap Connect Google Drive again in the app.";
+    return;
+  }
+
+  if (!token) {
+    document.getElementById("t").textContent = "Almost done";
+    document.getElementById("m").textContent =
+      "If the app did not open automatically, tap the button below. Then open Settings and confirm Drive is connected.";
+    return;
+  }
+
+  persistForWeb();
+  document.getElementById("t").textContent = "Connected";
+  document.getElementById("t").className = "ok";
+  document.getElementById("m").textContent =
+    "Drive access granted. Returning to AI Trainer…";
+
+  function goApp() {
+    try { window.location.replace(deep); } catch (e) {}
+    setTimeout(function () {
+      try { window.location.href = deep; } catch (e2) {}
+    }, 250);
+    setTimeout(function () {
+      // Last resort: stay on page with manual button
+      document.getElementById("m").textContent =
+        "Tap Open AI Trainer if the app did not open.";
+    }, 1200);
+  }
+
+  goApp();
+})();
+</script>
+</body>
+</html>
