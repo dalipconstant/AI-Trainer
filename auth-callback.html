@@ -7,72 +7,98 @@
   <style>
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
       font-family:system-ui,sans-serif;background:#070b07;color:#e8f5e9;text-align:center;padding:24px}
-    .card{max-width:380px}
+    .card{max-width:400px}
     h1{font-size:18px;margin:0 0 8px}
     p{opacity:.85;font-size:14px;line-height:1.45}
-    a.btn{display:inline-block;margin-top:14px;padding:12px 18px;border-radius:12px;
-      background:linear-gradient(135deg,#1b5e20,#00e676);color:#041004;text-decoration:none;font-weight:700}
+    a.btn,button.btn{display:inline-block;margin:8px 6px 0;padding:12px 18px;border-radius:12px;
+      background:linear-gradient(135deg,#1b5e20,#00e676);color:#041004;text-decoration:none;font-weight:700;border:0;cursor:pointer;font-size:15px}
+    a.btn2,button.btn2{background:transparent;border:1px solid rgba(57,255,20,.4);color:#b9f6ca}
     .ok{color:#39ff14}.err{color:#ff8a80}
   </style>
 </head>
 <body>
   <div class="card">
     <h1 id="t">Signing you in…</h1>
-    <p id="m">Please wait. Returning to AI Trainer.</p>
-    <p><a class="btn" id="openApp" href="https://dalipconstant.github.io/AI-Trainer/">Open AI Trainer</a></p>
+    <p id="m">Please wait.</p>
+    <p id="btns"></p>
   </div>
 <script>
 (function () {
+  var APP_WEB = "https://dalipconstant.github.io/AI-Trainer/index.html";
+  var DEEP = "com.aitrainer.app://auth-callback";
+
   var hash = window.location.hash || "";
   var search = window.location.search || "";
   if (!hash && /access_token=/.test(search)) hash = "#" + search.replace(/^\?/, "");
+  // Supabase sometimes returns ?code= for PKCE — keep as query if no token
   var params = new URLSearchParams(hash.replace(/^#/, ""));
   var access = params.get("access_token");
   var refresh = params.get("refresh_token") || "";
   var expiresIn = params.get("expires_in") || "3600";
-  var err = params.get("error") || params.get("error_description");
+  var err = params.get("error_description") || params.get("error");
 
-  var deep = "com.aitrainer.app://auth-callback" + (hash || "");
-  document.getElementById("openApp").href = deep;
+  var t = document.getElementById("t");
+  var m = document.getElementById("m");
+  var btns = document.getElementById("btns");
+
+  function webUrl() {
+    // Keep tokens in hash so the web app can read them on same origin
+    return APP_WEB + (hash || (access ? ("#access_token=" + encodeURIComponent(access) +
+      "&refresh_token=" + encodeURIComponent(refresh) +
+      "&expires_in=" + encodeURIComponent(expiresIn)) : ""));
+  }
+
+  function deepUrl() {
+    return DEEP + (hash || (access ? ("#access_token=" + encodeURIComponent(access) +
+      "&refresh_token=" + encodeURIComponent(refresh) +
+      "&expires_in=" + encodeURIComponent(expiresIn)) : ""));
+  }
 
   if (err) {
-    document.getElementById("t").textContent = "Sign-in failed";
-    document.getElementById("t").className = "err";
-    document.getElementById("m").textContent = err;
+    t.textContent = "Sign-in failed";
+    t.className = "err";
+    m.textContent = err;
+    btns.innerHTML = '<a class="btn" href="' + APP_WEB + '">Back to AI Trainer</a>';
     return;
   }
 
   if (!access) {
-    document.getElementById("t").textContent = "Almost done";
-    document.getElementById("m").textContent =
-      "No token in URL. Close this tab and try Google sign-in again from the app.";
+    t.textContent = "Almost done";
+    m.textContent = "No token found. Go back to the app and try again (or use email login).";
+    btns.innerHTML = '<a class="btn" href="' + APP_WEB + '">Open AI Trainer (web)</a>';
     return;
   }
 
   try {
-    var session = {
+    localStorage.setItem("ai_trainer_supabase_session", JSON.stringify({
       access_token: access,
       refresh_token: refresh,
       expires_in: Number(expiresIn) || 3600,
       expires_at: Math.floor(Date.now() / 1000) + (Number(expiresIn) || 3600),
       savedAt: Date.now()
-    };
-    localStorage.setItem("ai_trainer_supabase_session", JSON.stringify(session));
-    // If user opens the hosted app on same origin later, session is ready
+    }));
   } catch (e) {}
 
-  document.getElementById("t").textContent = "Signed in";
-  document.getElementById("t").className = "ok";
-  document.getElementById("m").textContent =
-    "Success. Returning to the app… If nothing opens, tap the button below.";
+  t.textContent = "Signed in";
+  t.className = "ok";
+  m.textContent = "Opening AI Trainer…";
 
-  function go() {
-    try { window.location.replace(deep); } catch (e) {}
-    setTimeout(function () {
-      try { window.location.href = deep; } catch (e2) {}
-    }, 300);
-  }
-  go();
+  var w = webUrl();
+  var d = deepUrl();
+
+  btns.innerHTML =
+    '<a class="btn" id="openWeb" href="' + w + '">Continue in browser</a>' +
+    '<a class="btn btn2" id="openDeep" href="' + d + '">Open app</a>';
+
+  // 1) Try native deep link (Capacitor APK)
+  try { window.location.href = d; } catch (e1) {}
+
+  // 2) After short delay, go to web app on same GitHub Pages origin (works on phone browser)
+  setTimeout(function () {
+    try { window.location.replace(w); } catch (e2) {
+      try { window.location.href = w; } catch (e3) {}
+    }
+  }, 700);
 })();
 </script>
 </body>

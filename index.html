@@ -1,19 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0f0a" />
   <title>AI Trainer</title>
-  <style>
-    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-      font-family:system-ui,sans-serif;background:#070b07;color:#e8f5e9;text-align:center;padding:24px}
-    a{color:#39ff14}
-  </style>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
 </head>
 <body>
-  <div>
-    <h1>AI Trainer</h1>
-    <p>OAuth callback lives at <a href="./oauth-drive.html">oauth-drive.html</a></p>
+  <div id="thinkingOverlay" class="thinking hidden">
+    <div class="think-ring"></div>
+    <p>AI is thinking…</p>
   </div>
+
+  <!-- AUTH -->
+  <div id="view-auth" class="view">
+    <div class="auth-wrap">
+      <div class="logo-mark">⚡</div>
+      <h1>AI Trainer</h1>
+      <p class="muted">Your coach. Your Drive. Your plan.</p>
+      <div class="auth-tabs">
+        <button type="button" class="active" data-auth="login">Log in</button>
+        <button type="button" data-auth="signup">Sign up</button>
+      </div>
+      <form id="authForm" class="auth-form">
+        <label class="field"><span>Email</span><input id="authEmail" type="email" required autocomplete="username" /></label>
+        <label class="field"><span>Password</span><input id="authPass" type="password" required autocomplete="current-password" /></label>
+        <button type="submit" class="btn primary block" id="authSubmit">Log in</button>
+      </form>
+      <button type="button" class="btn google block" id="btnGoogle">Continue with Google</button>
+      <p id="authMsg" class="msg"></p>
+    </div>
+  </div>
+
+  <!-- ONBOARDING -->
+  <div id="view-onboarding" class="view hidden">
+    <div class="ob-wrap">
+      <div class="ob-step" id="obStep">Step 1</div>
+      <div id="obBody"></div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="view-app" class="view hidden">
+    <div id="sideBackdrop" class="side-backdrop hidden"></div>
+    <aside id="sideNav" class="side-nav" aria-label="Main menu">
+      <div class="side-brand">
+        <span class="side-logo">⚡</span>
+        <div>
+          <strong>AI Trainer</strong>
+          <div class="muted small">Menu</div>
+        </div>
+        <button type="button" class="icon-btn" id="btnCloseSide" aria-label="Close">✕</button>
+      </div>
+      <nav class="side-links">
+        <button type="button" class="side-link" data-tab="home">🏠 Dashboard</button>
+        <button type="button" class="side-link" data-tab="tasks">✅ Tasks</button>
+        <button type="button" class="side-link" data-tab="ai">🤖 AI Coach</button>
+        <button type="button" class="side-link" data-tab="workouts">🏋️ Workouts / PR</button>
+        <button type="button" class="side-link" data-tab="diet">🥗 Diet</button>
+        <button type="button" class="side-link" data-tab="images">📸 Photos</button>
+        <button type="button" class="side-link" data-tab="profile">👤 Profile</button>
+        <button type="button" class="side-link" data-tab="settings">⚙️ Settings</button>
+      </nav>
+    </aside>
+
+    <header class="app-header" class="topbar">
+      <div>
+        <div class="hello" id="dashHello">Hi</div>
+        <div class="muted small" id="dashFocus"></div>
+      </div>
+      <button type="button" class="icon-btn" id="btnLogout" title="Log out">⎋</button>
+    </header>
+
+    <header class="app-header">
+      <button type="button" class="icon-btn menu-btn" id="btnOpenSide" aria-label="Menu">☰</button>
+      <div class="header-title" id="headerTitle">Dashboard</div>
+      <span style="width:40px"></span>
+    </header>
+    <main class="main">
+      <section id="tab-home" class="tab-panel">
+        <p class="motivation" id="dashMotivation"></p>
+        <h2 class="section-title">Today's tasks</h2>
+        <div id="dashTasks"></div>
+      </section>
+
+      <section id="tab-workouts" class="tab-panel hidden">
+        <div class="row2">
+          <h2 class="section-title">Workouts & PRs</h2>
+          <button type="button" class="btn primary sm" id="btnAddWorkout">+ Add</button>
+        </div>
+        <p class="muted small">Barbell loads = plate weight only (not the bar), unless you log bar-only.</p>
+        <div id="workoutList"></div>
+      </section>
+
+      <section id="tab-diet" class="tab-panel hidden">
+        <h2 class="section-title">Diet guide</h2>
+        <label class="field"><span>Ask nutrition AI</span>
+          <textarea id="dietQuestion" rows="2" placeholder="e.g. High protein veg day under 2000 kcal"></textarea>
+        </label>
+        <button type="button" class="btn primary block" id="btnDietAsk">Get diet advice</button>
+        <div id="dietOut" class="card md-body mt"></div>
+      </section>
+
+      <section id="tab-images" class="tab-panel hidden">
+        <div class="row2">
+          <h2 class="section-title">Physique photos</h2>
+          <button type="button" class="btn ghost sm" id="btnUpdatePhoto">Update</button>
+        </div>
+        <div id="imagesList"></div>
+      </section>
+
+      <section id="tab-tasks" class="tab-panel hidden">
+        <h2 class="section-title">Today's tasks</h2>
+        <p class="muted small" id="tasksFocus"></p>
+        <div id="tasksList"></div>
+        <div id="taskEditor" class="card hidden">
+          <h3 id="taskEditTitle">Edit task</h3>
+          <label class="field"><span>Sets</span><input id="teSets" type="number" min="0" step="1" /></label>
+          <label class="field"><span>Reps</span><input id="teReps" type="number" min="0" step="1" /></label>
+          <label class="field"><span>Weight / plates (kg)</span><input id="teWeight" type="number" min="0" step="0.5" placeholder="Optional" /></label>
+          <label class="field"><span>Rest / gap (sec)</span><input id="teRest" type="number" min="0" step="5" /></label>
+          <label class="field"><span>Notes</span><textarea id="teNotes" rows="2"></textarea></label>
+          <div class="row-btns">
+            <button type="button" class="btn primary" id="teSave">Save</button>
+            <button type="button" class="btn ghost" id="teComplete">Mark complete</button>
+            <button type="button" class="btn ghost" id="teCancel">Cancel</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-ai" class="tab-panel hidden">
+        <h2 class="section-title">AI Coach</h2>
+        <p class="muted small">Ask about form, recovery, diet, or today's plan.</p>
+        <div id="aiChatLog" class="ai-chat-log card"></div>
+        <label class="field"><span>Your question</span>
+          <textarea id="aiChatInput" rows="3" placeholder="e.g. Should I reduce weight if my form breaks?"></textarea>
+        </label>
+        <button type="button" class="btn primary block" id="btnAiAsk">Ask AI</button>
+        <div id="aiChatOut" class="card md-body"></div>
+      </section>
+
+      <section id="tab-profile" class="tab-panel hidden">
+        <h2 class="section-title">Profile & plan</h2>
+        <div id="profileBody"></div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel hidden">
+        <h2 class="section-title">Settings</h2>
+        <div class="card">
+          <label class="field"><span>AI engine</span>
+            <select id="setProvider">
+              <option value="gemini">Google Gemini</option>
+              <option value="openai">OpenAI</option>
+              <option value="claude">Anthropic Claude</option>
+              <option value="grok">xAI Grok</option>
+            </select>
+          </label>
+          <label class="field"><span>API key</span>
+            <input id="setApiKey" type="password" placeholder="Paste API key…" autocomplete="off" />
+          </label>
+          <button type="button" class="btn ghost block" id="btnGetGeminiKey">Get / open API key page</button>
+          <label class="field"><span>Model</span>
+            <select id="setModel">
+              <option value="gemini-3.7-flash">Gemini 3.7 Flash (latest)</option>
+            </select>
+          </label>
+          <button type="button" class="btn primary block" id="btnSaveSettings">Save AI settings</button>
+        </div>
+        <div class="card">
+          <p class="muted small">Sync profile, plan, tasks & workouts via your Google Drive folder <strong>AI Trainer Data</strong>.</p>
+          <button type="button" class="btn primary block" id="btnConnectDrive">Connect / sync Google Drive</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button type="button" class="nav-btn active" data-tab="home"><span>🏠</span>Home</button>
+      <button type="button" class="nav-btn" data-tab="tasks"><span>✅</span>Tasks</button>
+      <button type="button" class="nav-btn" data-tab="ai"><span>🤖</span>AI</button>
+      <button type="button" class="nav-btn" data-tab="profile"><span>👤</span>Profile</button>
+      <button type="button" class="nav-btn" data-tab="settings"><span>⚙️</span>Settings</button>
+    </nav>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/drive.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
