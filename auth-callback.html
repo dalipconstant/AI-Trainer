@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Signing in… — AI Trainer</title>
+  <style>
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+      font-family:system-ui,sans-serif;background:#070b07;color:#e8f5e9;text-align:center;padding:24px}
+    .card{max-width:380px}
+    h1{font-size:18px;margin:0 0 8px}
+    p{opacity:.85;font-size:14px;line-height:1.45}
+    a.btn{display:inline-block;margin-top:14px;padding:12px 18px;border-radius:12px;
+      background:linear-gradient(135deg,#1b5e20,#00e676);color:#041004;text-decoration:none;font-weight:700}
+    .ok{color:#39ff14}.err{color:#ff8a80}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="t">Signing you in…</h1>
+    <p id="m">Please wait. Returning to AI Trainer.</p>
+    <p><a class="btn" id="openApp" href="https://dalipconstant.github.io/AI-Trainer/">Open AI Trainer</a></p>
+  </div>
+<script>
+(function () {
+  var hash = window.location.hash || "";
+  var search = window.location.search || "";
+  if (!hash && /access_token=/.test(search)) hash = "#" + search.replace(/^\?/, "");
+  var params = new URLSearchParams(hash.replace(/^#/, ""));
+  var access = params.get("access_token");
+  var refresh = params.get("refresh_token") || "";
+  var expiresIn = params.get("expires_in") || "3600";
+  var err = params.get("error") || params.get("error_description");
+
+  var deep = "com.aitrainer.app://auth-callback" + (hash || "");
+  document.getElementById("openApp").href = deep;
+
+  if (err) {
+    document.getElementById("t").textContent = "Sign-in failed";
+    document.getElementById("t").className = "err";
+    document.getElementById("m").textContent = err;
+    return;
+  }
+
+  if (!access) {
+    document.getElementById("t").textContent = "Almost done";
+    document.getElementById("m").textContent =
+      "No token in URL. Close this tab and try Google sign-in again from the app.";
+    return;
+  }
+
+  try {
+    var session = {
+      access_token: access,
+      refresh_token: refresh,
+      expires_in: Number(expiresIn) || 3600,
+      expires_at: Math.floor(Date.now() / 1000) + (Number(expiresIn) || 3600),
+      savedAt: Date.now()
+    };
+    localStorage.setItem("ai_trainer_supabase_session", JSON.stringify(session));
+    // If user opens the hosted app on same origin later, session is ready
+  } catch (e) {}
+
+  document.getElementById("t").textContent = "Signed in";
+  document.getElementById("t").className = "ok";
+  document.getElementById("m").textContent =
+    "Success. Returning to the app… If nothing opens, tap the button below.";
+
+  function go() {
+    try { window.location.replace(deep); } catch (e) {}
+    setTimeout(function () {
+      try { window.location.href = deep; } catch (e2) {}
+    }, 300);
+  }
+  go();
+})();
+</script>
+</body>
+</html>
