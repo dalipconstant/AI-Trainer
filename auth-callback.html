@@ -3,39 +3,32 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Returning to AI Trainer…</title>
+  <title>Opening AI Trainer…</title>
   <style>
     body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
       font-family:system-ui,sans-serif;background:#070b07;color:#e8f5e9;text-align:center;padding:24px}
-    h1{font-size:18px;color:#39ff14}
-    p{opacity:.85;font-size:14px}
+    h1{font-size:18px;color:#39ff14;margin:0 0 8px}
+    p{opacity:.85;font-size:14px;line-height:1.45}
+    a{color:#00e676}
   </style>
 </head>
 <body>
   <div>
-    <h1>Returning to AI Trainer…</h1>
-    <p id="m">Opening the app. You can close this tab.</p>
+    <h1>Opening AI Trainer…</h1>
+    <p id="m">Returning to the app. You can close this browser tab.</p>
+    <p><a id="link" href="#">Tap here if the app did not open</a></p>
   </div>
 <script>
 (function () {
   var DEEP = "com.aitrainer.app://auth-callback";
   var hash = window.location.hash || "";
   var search = window.location.search || "";
-  if (!hash && /access_token=|refresh_token=/.test(search)) {
+  if (!hash && /access_token=|refresh_token=|code=/.test(search)) {
     hash = "#" + search.replace(/^\?/, "");
   }
-  var target = DEEP + (hash || (search ? "#" + search.replace(/^\?/, "") : ""));
+  var target = DEEP + (hash || "");
+  document.getElementById("link").href = target;
 
-  // Prefer deep link into installed Android app — do NOT open GitHub web app UI
-  function go() {
-    try { window.location.replace(target); } catch (e) {}
-    try { window.location.href = target; } catch (e2) {}
-  }
-  go();
-  setTimeout(go, 400);
-  setTimeout(go, 1200);
-
-  // If user is only on web (no APK), keep tokens in localStorage for same-origin later
   try {
     var params = new URLSearchParams((hash || "").replace(/^#/, ""));
     var access = params.get("access_token");
@@ -45,10 +38,20 @@
         refresh_token: params.get("refresh_token") || "",
         expires_in: Number(params.get("expires_in") || 3600),
         expires_at: Math.floor(Date.now() / 1000) + Number(params.get("expires_in") || 3600),
-        savedAt: Date.now()
+        savedAt: Date.now(),
+        staySignedIn: true
       }));
     }
   } catch (e) {}
+
+  function go() {
+    try { window.location.replace(target); } catch (e1) {}
+    try { window.location.href = target; } catch (e2) {}
+  }
+  go();
+  setTimeout(go, 300);
+  setTimeout(go, 1000);
+  setTimeout(go, 2500);
 })();
 </script>
 </body>
